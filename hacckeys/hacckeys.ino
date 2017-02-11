@@ -37,7 +37,7 @@ uint8_t buf[8] = { 0 };
  */
 
 /*
- *      CHAR CATCHING BY ARDUINO STARTS HERE
+ *      KEYBOARD EVENTS HANDLED HERE IN DETAIL
  */
 
 // Classes
@@ -80,7 +80,7 @@ void KbdRptParser::OnKeyUp(uint8_t mod, uint8_t key){
 
 
 /*
- *      CHAR MANIPULATION FROM ARDUINO STARTS HERE
+ *      PHASES FOR PROGRAMMABLE MODE HERE
  */
 
 // // Defining keyboard mode
