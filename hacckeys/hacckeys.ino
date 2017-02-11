@@ -11,6 +11,7 @@
 // Special Keys
 #define LAYER_KEY   0
 #define PROGRAM_KEY 1
+#define RESET_KEY   2
 
 /*
  *     DB FUNCTIONS
