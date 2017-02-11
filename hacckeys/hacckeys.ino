@@ -24,6 +24,7 @@ class KbdRptParser : public KeyboardReportParser {
 
 // Variables
 boolean PROGRAMMABLE;     // true is PROGRAMMABLE false is NOT PROGRAMMABLE
+boolean RESET;            // reset flag is set when reset is pressed once
 boolean lCtrlOn;
 boolean lShftOn;
 boolean lAltOn;
@@ -32,7 +33,7 @@ boolean rCtrlOn;
 boolean rShftOn;
 boolean rAltOn;
 boolean rGUIOn;
-uint8_t charAscii;
+uint8_t CHARASCII;
 
 // Catch ASCII from keyboard
 // This is probably an interrupt ---- 注意！
@@ -52,7 +53,7 @@ void KbdRptParser::OnKeyDown(uint8_t mod, uint8_t key)
   rAltOn  = (modif.bmRightAlt   == 1) ? true : false;
   rGUIOn  = (modif.bmRightGUI   == 1) ? true : false;
   
-  charAscii = OemToAscii(mod, key);
+  CHARASCII = OemToAscii(mod, key);
 }
 
 
@@ -97,6 +98,7 @@ void setHackkey() {
   
   // Turn LED ON
   while (digitalRead(PROGRAM_KEY) == 1);        // loop until program key is pressed
+  // read current input here
   delay(1000);                                  // just so things don't move too fast
 
   // Turn LED to FLASHING
@@ -106,6 +108,14 @@ void setHackkey() {
   return;
 }
 
+/*
+ *     DB FUNCTIONS
+ */
+
+boolean addMacro();
+uint16_t[] readMacro();
+void deleteMacro(uint8_t mod, uint8_t key);
+void deleteAllMacros();
 
 /*
  *     ARDUINO SETUP AND LOOP
@@ -146,9 +156,20 @@ void loop() {
   PROGRAMMABLE = digitalRead(LAYER_KEY)? true : false;
 
   if (PROGRAMMABLE) {
-    if (digitalRead(PROGRAM_KEY) != 1) {
+    if (digitalRead(RESET_KEY) != 1) {
+      if (RESET) {
+        deleteAllMacros();
+      }
+      else {
+        RESET = true;
+      }
+    }
+    else if (digitalRead(PROGRAM_KEY) != 1) {
+      RESET = false;
       setHackkey();
-    } else {
+    } 
+    else {
+      RESET = false;
       // manipulate buf
       checkThenManageBuf();
       Serial.write(buf, 8);
