@@ -9,18 +9,18 @@
 #endif
 
 // Special Keys - pins
-#define LAYER_KEY   0
-#define PROGRAM_KEY 1
-#define RESET_KEY   2
+#define LAYER_SWITCH   0
+#define PROGRAM_KEY    1
+#define RESET_KEY      2
 
 /*
  *     DB FUNCTIONS
  */
 
 boolean addMacro(uint8_t mod, uint8_t key, uint16_t *modkey_array){};
-uint16_t[] readMacro(uint8_t mod, uint8_t key);
+uint16_t* readMacro(uint8_t mod, uint8_t key);
 void deleteMacro(uint8_t mod, uint8_t key);
-void deleteAllMacros();
+void deleteAllMacros(void);
 
 uint8_t buf[8] = { 0 };
 /*
@@ -47,24 +47,13 @@ class KbdRptParser : public KeyboardReportParser {
     void OnKeyUp  (uint8_t mod, uint8_t key);
 };
 
-// Variables
-boolean PROGRAMMABLE;     // true is PROGRAMMABLE false is NOT PROGRAMMABLE
+// GLOBAL Variables
+boolean PROGRAMMABLE_LAYER;     // true is PROGRAMMABLE false is NOT PROGRAMMABLE
 boolean RESET;            // reset flag is set when reset is pressed once
-/*boolean lCtrlOn;
-boolean lShftOn;
-boolean lAltOn;
-boolean lGUIOn;
-boolean rCtrlOn;
-boolean rShftOn;
-boolean rAltOn;
-boolean rGUIOn;
-uint8_t CHARASCII;
-uint8_t MODIFIERS;
-uint8_t PRESSEDKEY;*/
 
 void KbdRptParser::OnKeyDown(uint8_t mod, uint8_t key)
 {
-  if(!PROGRAMMABLE){
+  if(!PROGRAMMABLE_LAYER){
     buf[0] = mod;
     if(buf[2] == 0){ buf[2] = key; }
     else if(buf[3] == 0){ buf[3] = key; }
@@ -75,6 +64,7 @@ void KbdRptParser::OnKeyDown(uint8_t mod, uint8_t key)
     Serial.write(buf, 8);
   }
   // TODO case PROGRAMMABLE
+  // if in PROGRAM_MODE, then don't Serial.write
 }
 
 void KbdRptParser::OnKeyUp(uint8_t mod, uint8_t key){
@@ -93,31 +83,13 @@ void KbdRptParser::OnKeyUp(uint8_t mod, uint8_t key){
  *      CHAR MANIPULATION FROM ARDUINO STARTS HERE
  */
 
-//// Defining keyboard mode
-//#define QWERTY   1
-//#define DVORAK   2
-//#define COLEMARK 3
+// // Defining keyboard mode
+// #define QWERTY   1
+// #define DVORAK   2
+// #define COLEMARK 3
 //
-//// For now
-//int state = QWERTY;
-
-// Function to clear input modifiers and key
-void resetBuf() {
-  buf[0] = 0;
-  buf[2] = 0;
-  Serial.write(buf, 8);
-}
-
-void checkThenManageBuf () {
-  uint16_t[] moves = readMacro(MODIFIERS, PRESSEDKEY); // doesn't compile
-  manageBuf(); // if needed
-  return;
-}
-
-void manageBuf () {
-  // manipulate buf
-  return;
-}
+// // For now
+// int state = QWERTY;
 
 /*
  *     Function for Programmable mode (Step by Step)
@@ -132,7 +104,7 @@ void setHackkey() {
 
   // Turn LED to FLASHING
   while (digitalRead(PROGRAM_KEY) == 1) {
-    // take in all events into an array
+   // take in all events into an array
   };
   return;
 }
@@ -172,9 +144,9 @@ void loop() {
   // need this for reading from keyboard
   Usb.Task();
 
-  PROGRAMMABLE = digitalRead(LAYER_SWITCH) ? true : false; // TODO check voltage
+  PROGRAMMABLE_LAYER = digitalRead(LAYER_SWITCH) ? true : false; // TODO check voltage
 
-  if (PROGRAMMABLE) {
+  if (PROGRAMMABLE_LAYER) {
     if (digitalRead(RESET_KEY) != 1) {
       if (RESET) {
         deleteAllMacros();
@@ -189,12 +161,7 @@ void loop() {
     } 
     else {
       RESET = false;
-      // manipulate buf
-      checkThenManageBuf();
-      Serial.write(buf, 8);
-      resetBuf();
     }
-  
   }
   // If it's not programmable then it will just send the key presses straight through
   // So the event listener for the keyboard will deal with that
