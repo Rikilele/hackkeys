@@ -13,6 +13,9 @@
 #define PROGRAM_KEY    1
 #define RESET_KEY      2
 
+// LED
+#define LED_PROG       3
+
 /*
  *     DB FUNCTIONS
  */
@@ -111,6 +114,16 @@ void KbdRptParser::OnKeyUp(uint8_t mod, uint8_t key) {
 // // For now
 // int state = QWERTY;
 
+
+/*
+ *     LED SETUP : Thanks to built in example sketch
+ */
+
+int             ledState       = LOW;             // ledState used to set the LED
+unsigned long   previousMillis  = 0;               // will store last time LED was updated
+const long      interval        = 1000;            // interval at which to blink (milliseconds)
+
+
 /*
  *     ARDUINO SETUP AND LOOP
  */
@@ -137,6 +150,7 @@ void setup()
 
   pinMode(PROGRAM_KEY, INPUT);
   digitalWrite(PROGRAM_KEY, 1);
+  pinMode(LED_PROG, OUTPUT);
 
   delay( 200 );
 }
@@ -147,7 +161,7 @@ void loop() {
   Usb.Task();
 
   PROGRAMMABLE_LAYER = digitalRead(LAYER_SWITCH) ? true : false; // TODO check voltage
-
+  
   if (PROGRAMMABLE_LAYER) {
     
     if (digitalRead(RESET_KEY) != 1) {     // read reset key first
@@ -163,4 +177,34 @@ void loop() {
       PROGRAM_MODE_COMM = true;
     }
   }
+
+  /*
+  *     LED task
+  */
+
+  if (PROGRAM_MODE_COMM) {
+    ledState = HIGH;
+  }
+  else if (PROGRAM_MODE_MACRO) {
+    // check to see if it's time to blink the LED; that is, if the
+    // difference between the current time and last time you blinked
+    // the LED is bigger than the interval at which you want to
+    // blink the LED.
+    unsigned long currentMillis = millis();
+    
+    if (currentMillis - previousMillis >= interval) {
+      // save the last time you blinked the LED
+      previousMillis = currentMillis;
+      // if the LED is off turn it on and vice-versa:
+      if (ledState == LOW) {
+        ledState = HIGH;
+      } else {
+        ledState = LOW;
+      } 
+    }
+  } else {
+    ledState = LOW;
+  }
+  // set the LED with the ledState of the variable:
+  digitalWrite(LED_PROG, ledState);
 }
