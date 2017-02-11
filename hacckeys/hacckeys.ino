@@ -48,26 +48,45 @@ class KbdRptParser : public KeyboardReportParser {
 };
 
 // GLOBAL Variables
-boolean PROGRAMMABLE_LAYER;     // true is PROGRAMMABLE false is NOT PROGRAMMABLE
-boolean RESET;            // reset flag is set when reset is pressed once
+boolean PROGRAMMABLE_LAYER;                   // true is PROGRAMMABLE, false is NOT PROGRAMMABLE
+boolean PROGRAM_MODE_COMM     = false;
+boolean PROGRAM_MODE_MACRO    = false;
+boolean RESET                 = false;        // reset flag is set when reset is pressed once
 
 void KbdRptParser::OnKeyDown(uint8_t mod, uint8_t key)
 {
+  buf[0] = mod;
+  if(buf[2] == 0){ buf[2] = key; }
+  else if(buf[3] == 0){ buf[3] = key; }
+  else if(buf[4] == 0){ buf[4] = key; }
+  else if(buf[5] == 0){ buf[5] = key; }
+  else if(buf[6] == 0){ buf[6] = key; }
+  else if(buf[7] == 0){ buf[7] = key; }
+  
   if(!PROGRAMMABLE_LAYER){
-    buf[0] = mod;
-    if(buf[2] == 0){ buf[2] = key; }
-    else if(buf[3] == 0){ buf[3] = key; }
-    else if(buf[4] == 0){ buf[4] = key; }
-    else if(buf[5] == 0){ buf[5] = key; }
-    else if(buf[6] == 0){ buf[6] = key; }
-    else if(buf[7] == 0){ buf[7] = key; }
     Serial.write(buf, 8);
   }
-  // TODO case PROGRAMMABLE
-  // if in PROGRAM_MODE, then don't Serial.write
+  else if (PROGRAM_MODE_COMM) {
+    // turn on LED
+    // write command to temp global
+    PROGRAM_MODE_COMM  = false;
+    PROGRAM_MODE_MACRO = true;
+  }
+  else if (PROGRAM_MODE_MACRO) {
+    // flash LED
+    // send key events to temp global
+    // this function should reset the flag as well
+  }
+  else {
+    // check for comm/macro combination
+    // then,
+    Serial.write(buf, 8);
+  }
+  
 }
 
-void KbdRptParser::OnKeyUp(uint8_t mod, uint8_t key){
+void KbdRptParser::OnKeyUp(uint8_t mod, uint8_t key) {
+  // TODO: Macro mode should be including key up
   buf[0] = 0;
   if(buf[2] == key){ buf[2] = 0; }
   else if(buf[3] == key){ buf[3] = 0; }
@@ -90,24 +109,6 @@ void KbdRptParser::OnKeyUp(uint8_t mod, uint8_t key){
 //
 // // For now
 // int state = QWERTY;
-
-/*
- *     Function for Programmable mode (Step by Step)
- */
-
-void setHackkey() {
-  
-  // Turn LED ON
-  while (digitalRead(PROGRAM_KEY) == 1);        // loop until program key is pressed
-  // read current input here
-  delay(1000);                                  // just so things don't move too fast
-
-  // Turn LED to FLASHING
-  while (digitalRead(PROGRAM_KEY) == 1) {
-   // take in all events into an array
-  };
-  return;
-}
 
 /*
  *     ARDUINO SETUP AND LOOP
@@ -147,28 +148,18 @@ void loop() {
   PROGRAMMABLE_LAYER = digitalRead(LAYER_SWITCH) ? true : false; // TODO check voltage
 
   if (PROGRAMMABLE_LAYER) {
-    if (digitalRead(RESET_KEY) != 1) {
+    
+    if (digitalRead(RESET_KEY) != 1) {     // read reset key first
       if (RESET) {
-        deleteAllMacros();
+        deleteAllMacros();                 // if second time pressing reset, reset all programs
       }
       else {
-        RESET = true;
+        RESET = true;                      // set up reset flag
       }
     }
     else if (digitalRead(PROGRAM_KEY) != 1) {
       RESET = false;
-      setHackkey();
-    } 
-    else {
-      RESET = false;
+      PROGRAM_MODE_COMM = true;
     }
   }
-  // If it's not programmable then it will just send the key presses straight through
-  // So the event listener for the keyboard will deal with that
-  /* else {
-    // not programmable
-    manageBuf();
-    Serial.write(buf, 8);
-    resetBuf();
-    }*/
 }
