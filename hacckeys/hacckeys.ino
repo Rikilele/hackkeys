@@ -11,16 +11,18 @@
 
 // Special Keys - pins
 #define LAYER_SWITCH   14
-#define PROGRAM_KEY    6
-#define RESET_KEY      5
+#define PROGRAM_KEY    2
+#define RESET_KEY      6
+
+// LED - pin
+
+#define LED_PROG       18
 
 // GLOBAL Variables
 boolean PROGRAMMABLE_LAYER;                   // true is PROGRAMMABLE, false is NOT PROGRAMMABLE
 boolean PROGRAM_MODE_COMM     = false;
 boolean PROGRAM_MODE_MACRO    = false;
 boolean RESET                 = false;        // reset flag is set when reset is pressed once
-// LED
-#define LED_PROG       6
 
 /*
  *     DB FUNCTIONS
@@ -268,7 +270,7 @@ void KbdRptParser::OnKeyUp(uint8_t mod, uint8_t key) {
  *     LED SETUP : Thanks to built in example sketch
  */
 
-int             ledState        = HIGH;             // ledState used to set the LED
+int             ledState        = LOW;             // ledState used to set the LED
 unsigned long   previousMillis  = 0;               // will store last time LED was updated
 const long      interval        = 1000;            // interval at which to blink (milliseconds)
 
@@ -314,35 +316,34 @@ void loop() {
   
   if (PROGRAMMABLE_LAYER) {
     
-    if (digitalRead(RESET_KEY) != 1) {     // read reset key first
+    if (digitalRead(RESET_KEY) != HIGH) {     // read reset key first
       Serial.println("reset key pressed!");
       if (RESET) {
         deleteAllMacros();                 // if second time pressing reset, reset all programs
-	RESET = false;
+	      RESET = false;
       }
       else {
         RESET = true;                      // set up reset flag
       }
     }
-    else if (digitalRead(PROGRAM_KEY) != 1) {
+    else if (digitalRead(PROGRAM_KEY) != HIGH) {
       RESET = false;
       PROGRAM_MODE_COMM = true;
     }
-  }
-
-  if(digitalRead(RESET_KEY) && PROGRAM_MODE_MACRO){
-    PROGRAM_MODE_MACRO = false;
-    deleteMacro();
-  }
+    if(digitalRead(RESET_KEY) && PROGRAM_MODE_MACRO){
+      PROGRAM_MODE_MACRO = false;
+      deleteMacro();
+    }
   
-  if(digitalRead(PROGRAM_KEY) && PROGRAM_MODE_MACRO) {
-    PROGRAM_MODE_MACRO = false;
-    addMacro();
-  }
+    if(digitalRead(PROGRAM_KEY) && PROGRAM_MODE_MACRO) {
+      PROGRAM_MODE_MACRO = false;
+      addMacro();
+    }
   
-  if(prog_macro_pos == 11){
-    PROGRAM_MODE_MACRO = false;
-    addMacro();
+    if(prog_macro_pos == 11){
+      PROGRAM_MODE_MACRO = false;
+      addMacro();
+    }
   }
   
   /*
@@ -369,17 +370,21 @@ void loop() {
         ledState = LOW;
       } 
     }
-  } else {
-    ledState = HIGH;
-  }
+  } //else {
+    //ledState = LOW;
+  //}
   // set the LED with the ledState of the variable:
   digitalWrite(LED_PROG, ledState);
 
 
 
 
-  Serial.println(PROGRAMMABLE_LAYER);
-  Serial.println(PROGRAM_MODE_COMM);
-  Serial.println(PROGRAM_MODE_MACRO);
-  Serial.println(RESET);
+  if(PROGRAMMABLE_LAYER)
+    Serial.println("programmable layer");
+  if(PROGRAM_MODE_COMM)
+    Serial.println("program mode comm");
+  if(PROGRAM_MODE_MACRO)
+    Serial.println("program mode macro");
+  if(RESET)
+    Serial.println("reset");
 }
