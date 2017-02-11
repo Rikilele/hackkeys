@@ -1,8 +1,11 @@
-# hackkeys
-Steelhacks 2017
+# Hackkeys
+A hackable keyboard, created for Steelhacks 2017
 
-By Joe, Paul, Riki
+# Authors
+Paul Elder   (Pitt CS, Freshman)
+Joe Taylor   (CMU MechE, Sophomore)
+Riki Khorana (CMU ECE, Sophomore)
 
-# Sources:
+# Sources used
 - arduinoMacroKeyboard as sample
   - [https://github.com/BlitzCityDIY/arduinoMacroKeyboard]
