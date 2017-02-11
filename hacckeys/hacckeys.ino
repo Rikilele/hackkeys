@@ -55,6 +55,7 @@ boolean RESET                 = false;        // reset flag is set when reset is
 
 void KbdRptParser::OnKeyDown(uint8_t mod, uint8_t key)
 {
+  RESET = false;
   buf[0] = mod;
   if(buf[2] == 0){ buf[2] = key; }
   else if(buf[3] == 0){ buf[3] = key; }
