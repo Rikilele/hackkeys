@@ -20,14 +20,30 @@ class KbdRptParser : public KeyboardReportParser
 };
 
 void KbdRptParser::OnKeyDown(uint8_t mod, uint8_t key){
-  buf[0] = mod;
+  /*buf[0] = mod;
   buf[2] = key;
+  Serial.write(buf, 8);*/
+  buf[0] = mod;
+  if(buf[2] == 0){ buf[2] = key; }
+  else if(buf[3] == 0){ buf[3] = key; }
+  else if(buf[4] == 0){ buf[4] = key; }
+  else if(buf[5] == 0){ buf[5] = key; }
+  else if(buf[6] == 0){ buf[6] = key; }
+  else if(buf[7] == 0){ buf[7] = key; }
   Serial.write(buf, 8);
 }
 
 void KbdRptParser::OnKeyUp(uint8_t mod, uint8_t key){
-  buf[0] = 0;
+  /*buf[0] = 0;
   buf[2] = 0;
+  Serial.write(buf, 8);*/
+  buf[0] = 0;
+  if(buf[2] == key){ buf[2] = 0; }
+  else if(buf[3] == key){ buf[3] = 0; }
+  else if(buf[4] == key){ buf[4] = 0; }
+  else if(buf[5] == key){ buf[5] = 0; }
+  else if(buf[6] == key){ buf[6] = 0; }
+  else if(buf[7] == key){ buf[7] = 0; }
   Serial.write(buf, 8);
 }
 
