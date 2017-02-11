@@ -13,6 +13,15 @@
 #define PROGRAM_KEY 1
 
 /*
+ *     DB FUNCTIONS
+ */
+
+boolean addMacro();
+uint16_t[] readMacro(uint8_t mod, uint8_t key);
+void deleteMacro(uint8_t mod, uint8_t key);
+void deleteAllMacros();
+
+/*
  *      CHAR CATCHING BY ARDUINO STARTS HERE
  */
 
@@ -34,6 +43,8 @@ boolean rShftOn;
 boolean rAltOn;
 boolean rGUIOn;
 uint8_t CHARASCII;
+uint8_t MODIFIERS;
+uint8_t PRESSEDKEY;
 
 // Catch ASCII from keyboard
 // This is probably an interrupt ---- 注意！
@@ -54,6 +65,8 @@ void KbdRptParser::OnKeyDown(uint8_t mod, uint8_t key)
   rGUIOn  = (modif.bmRightGUI   == 1) ? true : false;
   
   CHARASCII = OemToAscii(mod, key);
+  MODIFIERS = mod;
+  PRESSEDKEY = key;
 }
 
 
@@ -80,7 +93,7 @@ void resetBuf() {
 }
 
 void checkThenManageBuf () {
-  // check DB
+  uint16_t[] moves = readMacro(MODIFIERS, PRESSEDKEY); // doesn't compile
   manageBuf(); // if needed
   return;
 }
@@ -107,15 +120,6 @@ void setHackkey() {
   };
   return;
 }
-
-/*
- *     DB FUNCTIONS
- */
-
-boolean addMacro();
-uint16_t[] readMacro();
-void deleteMacro(uint8_t mod, uint8_t key);
-void deleteAllMacros();
 
 /*
  *     ARDUINO SETUP AND LOOP
