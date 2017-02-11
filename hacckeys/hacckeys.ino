@@ -1,6 +1,7 @@
 // All includes here
 #include <hidboot.h>
 #include <usbhub.h>
+#include <EEPROM.h>
 
 // Satisfy the IDE, which needs to see the include statment in the ino too.
 #ifdef dobogusinclude
@@ -9,9 +10,9 @@
 #endif
 
 // Special Keys - pins
-#define LAYER_SWITCH   0
-#define PROGRAM_KEY    1
-#define RESET_KEY      2
+#define LAYER_SWITCH   2
+#define PROGRAM_KEY    3
+#define RESET_KEY      5
 
 // GLOBAL Variables
 boolean PROGRAMMABLE_LAYER;                   // true is PROGRAMMABLE, false is NOT PROGRAMMABLE
@@ -19,7 +20,7 @@ boolean PROGRAM_MODE_COMM     = false;
 boolean PROGRAM_MODE_MACRO    = false;
 boolean RESET                 = false;        // reset flag is set when reset is pressed once
 // LED
-#define LED_PROG       3
+#define LED_PROG       6
 
 /*
  *     DB FUNCTIONS
@@ -100,7 +101,7 @@ boolean execMacro(){
 	buf[5] = buffer[4];
 	buf[6] = buffer[5];
 	buf[7] = buffer[6];
-	Serial.Write(buf, 8);
+	Serial.write(buf, 8);
 	if(buf[0] == buf[1] == buf[2] == buf[3] == buf[4] == buf[5] == buf[6] == buf[7] == 0){ k = 12; }
       }
       return true;
@@ -220,7 +221,7 @@ void KbdRptParser::OnKeyUp(uint8_t mod, uint8_t key) {
  *     LED SETUP : Thanks to built in example sketch
  */
 
-int             ledState       = LOW;             // ledState used to set the LED
+int             ledState        = HIGH;             // ledState used to set the LED
 unsigned long   previousMillis  = 0;               // will store last time LED was updated
 const long      interval        = 1000;            // interval at which to blink (milliseconds)
 
@@ -312,7 +313,7 @@ void loop() {
       } 
     }
   } else {
-    ledState = LOW;
+    ledState = HIGH;
   }
   // set the LED with the ledState of the variable:
   digitalWrite(LED_PROG, ledState);
