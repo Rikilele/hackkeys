@@ -13,14 +13,15 @@
 #define PROGRAM_KEY    1
 #define RESET_KEY      2
 
-/*
- *     DB FUNCTIONS
- */
+// GLOBAL Variables
+boolean PROGRAMMABLE_LAYER;                   // true is PROGRAMMABLE, false is NOT PROGRAMMABLE
+boolean PROGRAM_MODE_COMM     = false;
+boolean PROGRAM_MODE_MACRO    = false;
+boolean RESET                 = false;        // reset flag is set when reset is pressed once
 
-boolean addMacro(uint8_t mod, uint8_t key, uint16_t *modkey_array){};
-uint16_t* readMacro(uint8_t mod, uint8_t key);
-void deleteMacro(uint8_t mod, uint8_t key);
-void deleteAllMacros(void);
+uint8_t prog_comm[7];
+uint8_t prog_macro[20][7];
+int addr = 0;
 
 uint8_t buf[8] = { 0 };
 /*
@@ -36,6 +37,112 @@ uint8_t buf[8] = { 0 };
  * buf[7] = [keycode6]
  */
 
+
+/*
+ *     DB FUNCTIONS
+ */
+
+boolean addMacro(){
+  // First get length of macro
+  uint8_t length = 1; // number of 7-byte blocks
+  boolean cont = true;
+  while(cont){
+    if((prog_macro[length-1][0] | prog_macro[length-1][1] | prog_macro[length-1][2] | prog_macro[length-1][3] | prog_macro[length-1][4] | prog_macro[length-1][5] | prog_macro[length-1][6]) == 0){
+      cont = false;
+    }
+    else { length += 1; }
+  }
+  // Check if there's enough ROM to store the macro
+  if((EEPROM.length() - addr) < (length*7)){ return false; }
+  // If there is, store the macro in ROM
+  else{
+    EEPROM.put(addr, length);
+    addr += 1;
+    EEPROM.put(addr, prog_comm);
+    addr += 7;
+    EEPROM.put(addr, prog_macro);
+    addr += (1 + (length * 7));
+    // Also remember to increment number of macro counter
+    uint8_t num_macros = EEPROM.read(0);
+    EEPROM.write(0, num_macros+1);
+    return true;
+  }
+}
+
+boolean execMacro(){
+  uint8_t num_macros = EEPROM.read(0);
+  uint8_t len_macro;
+  uint8_t buffer[7];
+  int m_addr = 1;
+  boolean equal = false;
+  // Loop to check each macro in ROM
+  for( int i = 0; i < num_macros; i++ ){
+    len_macro = EEPROM.read(m_addr);
+    m_addr += 1;
+    EEPROM.get(m_addr, buffer);
+    // Check if the command equals this one in ROM
+    for(int j = 0; j < 7; j++){
+      if(buffer[j] == prog_comm[j]){ equal = true; }
+      else{ equal = false; j = 7;}
+    }
+    // If it is equal, read the next len_macro-1 7-byte blocks and send the keycodes
+    // And exit this function with a success return status
+    if(equal){
+      m_addr += 7;
+      for(int k = 0; k < (len_macro - 1); k++){
+	EEPROM.get(m_addr, buffer);
+	m_addr += 7;
+	buf[0] = buffer[0];
+	buf[1] = 0x00;
+	buf[2] = buffer[1];
+	buf[3] = buffer[2];
+	buf[4] = buffer[3];
+	buf[5] = buffer[4];
+	buf[6] = buffer[5];
+	buf[7] = buffer[6];
+	Serial.Write(buf, 8)
+      }
+      return true;
+    }
+    // If not equal, skip ahead to next entry in ROM
+    m_addr += 7 * (len_macro - 1);
+  }
+  // All macros in ROM checked, none match the command, so return false
+  return false;
+}
+
+boolean deleteMacro(){
+  uint8_t num_macros = EEPROM.read(0);
+  uint8_t len_macro;
+  uint8_t buffer[7];
+  int m_addr = 1;
+  boolean equal = false;
+  // Loop to check each macro in ROM
+  for( int i = 0; i < num_macros; i++ ){
+    len_macro = EEPROM.read(m_addr);
+    m_addr += 1;
+    EEPROM.get(m_addr, buffer);
+    // Check if the command equals this one in ROM
+    for(int j = 0; j < 7; j++){
+      if(buffer[j] == prog_comm[j]){ equal = true; }
+      else{ equal = false; j = 7;}
+    }
+    // If it is equal, read the next len_macro-1 7-byte blocks and send the keycodes
+    // And exit this function with a success return status
+    if(equal){
+    }
+      return true;
+    }
+    // If not equal, skip ahead to next entry in ROM
+    m_addr += 7 * (len_macro - 1);
+  }
+  // All macros in ROM checked, none match the command, so return false
+  return false;  
+}
+void deleteAllMacros();
+void loadMacros();
+
+
 /*
  *      KEYBOARD EVENTS HANDLED HERE IN DETAIL
  */
@@ -46,12 +153,6 @@ class KbdRptParser : public KeyboardReportParser {
     void OnKeyDown (uint8_t mod, uint8_t key);
     void OnKeyUp  (uint8_t mod, uint8_t key);
 };
-
-// GLOBAL Variables
-boolean PROGRAMMABLE_LAYER;                   // true is PROGRAMMABLE, false is NOT PROGRAMMABLE
-boolean PROGRAM_MODE_COMM     = false;
-boolean PROGRAM_MODE_MACRO    = false;
-boolean RESET                 = false;        // reset flag is set when reset is pressed once
 
 void KbdRptParser::OnKeyDown(uint8_t mod, uint8_t key)
 {
@@ -136,6 +237,14 @@ void setup()
 
   pinMode(PROGRAM_KEY, INPUT);
   digitalWrite(PROGRAM_KEY, 1);
+
+  uint64_t num;
+  boolean cont = true;
+  while(cont && addr < EEPROM.length()){
+    EEPROM.get(addr, num);
+    if(num == 0xffffffffffffffff){ cont = false; }
+    else{ addr += 1; }
+  }
 
   delay( 200 );
 }
