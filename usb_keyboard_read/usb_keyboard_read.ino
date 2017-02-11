@@ -7,18 +7,25 @@
 #include <SPI.h>
 #endif
 
+/*
+ * class necessary from the beginning 
+ */
 class KbdRptParser : public KeyboardReportParser
 {
     void PrintKey(uint8_t mod, uint8_t key);
 
   protected:
-    void OnControlKeysChanged(uint8_t before, uint8_t after);
-
     void OnKeyDown	(uint8_t mod, uint8_t key);
-    void OnKeyUp	(uint8_t mod, uint8_t key);
     void OnKeyPressed(uint8_t key);
+    // void OnKeyUp  (uint8_t mod, uint8_t key);                         ---> いらない for now
+    // void OnControlKeysChanged(uint8_t before, uint8_t after);        ---> いらない for now
 };
 
+/*
+ * functions native to class
+*/
+
+// prints the modifier key on Serial
 void KbdRptParser::PrintKey(uint8_t m, uint8_t key)
 {
   MODIFIERKEYS mod;
@@ -29,7 +36,7 @@ void KbdRptParser::PrintKey(uint8_t m, uint8_t key)
   Serial.print((mod.bmLeftGUI    == 1) ? "G" : " ");
 
   Serial.print(" >");
-  //PrintHex<uint8_t>(key, 0x80);
+  PrintHex<uint8_t>(key, 0x80);
   Serial.print("< ");
 
   Serial.print((mod.bmRightCtrl   == 1) ? "C" : " ");
@@ -38,17 +45,28 @@ void KbdRptParser::PrintKey(uint8_t m, uint8_t key)
   Serial.println((mod.bmRightGUI    == 1) ? "G" : " ");
 };
 
+// will call OnKeyPressed();
 void KbdRptParser::OnKeyDown(uint8_t mod, uint8_t key)
 {
   Serial.print("DN ");
-  //PrintKey(mod, key);
+  PrintKey(mod, key);
   uint8_t c = OemToAscii(mod, key);
-  //char c = key;
+  // char c = key;
 
   if (c)
     OnKeyPressed(c);
 }
 
+// just prints key pressed
+void KbdRptParser::OnKeyPressed(uint8_t key)
+{
+  Serial.print("ASCII: ");
+  Serial.println((char)key);
+};
+
+// いらない functions for now
+
+/*
 void KbdRptParser::OnControlKeysChanged(uint8_t before, uint8_t after) {
 
   MODIFIERKEYS beforeMod;
@@ -91,26 +109,26 @@ void KbdRptParser::OnKeyUp(uint8_t mod, uint8_t key)
   PrintKey(mod, key);
 }
 
-void KbdRptParser::OnKeyPressed(uint8_t key)
-{
-  Serial.print("ASCII: ");
-  Serial.println((char)key);
-};
+*/
 
-USB     Usb;
-//USBHub     Hub(&Usb);
+/*
+ * ここから main
+ */
+
+USB                                   Usb;
+USBHub                                Hub(&Usb);
 HIDBoot<USB_HID_PROTOCOL_KEYBOARD>    HidKeyboard(&Usb);
-
-uint32_t next_time;
-
-KbdRptParser Prs;
+uint32_t                              next_time;
+KbdRptParser                          Prs;
 
 void setup()
 {
   Serial.begin( 9600 );
+  
 #if !defined(__MIPSEL__)
   while (!Serial); // Wait for serial port to connect - used on Leonardo, Teensy and other boards with built-in USB CDC serial connection
 #endif
+
   Serial.println("Start");
 
   if (Usb.Init() == -1)
@@ -126,5 +144,6 @@ void setup()
 void loop()
 {
   Usb.Task();
+  // ここに書き足す
 }
 
