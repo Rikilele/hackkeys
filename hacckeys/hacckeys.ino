@@ -9,8 +9,8 @@
 #endif
 
 // Special Keys
-
-#define PROGRAM_KEY 0
+#define LAYER_KEY   0
+#define PROGRAM_KEY 1
 
 /*
  *      CHAR CATCHING BY ARDUINO STARTS HERE
@@ -23,7 +23,7 @@ class KbdRptParser : public KeyboardReportParser {
 };
 
 // Variables
-
+boolean PROGRAMMABLE;     // true is PROGRAMMABLE false is NOT PROGRAMMABLE
 boolean lCtrlOn;
 boolean lShftOn;
 boolean lAltOn;
@@ -35,6 +35,7 @@ boolean rGUIOn;
 uint8_t charAscii;
 
 // Catch ASCII from keyboard
+// This is probably an interrupt ---- 注意！
 void KbdRptParser::OnKeyDown(uint8_t mod, uint8_t key)
 {
   // introduce a mod, so things work out
@@ -52,9 +53,6 @@ void KbdRptParser::OnKeyDown(uint8_t mod, uint8_t key)
   rGUIOn  = (modif.bmRightGUI   == 1) ? true : false;
   
   charAscii = OemToAscii(mod, key);
-
-  // function to go to next step
-  
 }
 
 
@@ -74,34 +72,37 @@ uint8_t buf[8] = { 0 };
 //int state = QWERTY;
 
 // Function to clear input modifiers and key
-void releaseKey() {
+void resetBuf() {
   buf[0] = 0;
   buf[2] = 0;
   Serial.write(buf, 8);
 }
 
+void checkThenManageBuf () {
+  // check DB
+  manageBuf(); // if needed
+  return;
+}
+
+void manageBuf () {
+  // manipulate buf
+  return;
+}
+
 /*
- *     Functions for Programmable mode (Step by Step)
+ *     Function for Programmable mode (Step by Step)
  */
 
-void determineHack() {
+void setHackkey() {
+  
   // Turn LED ON
   while (digitalRead(PROGRAM_KEY) == 1);        // loop until program key is pressed
-  // sendKeyToDataBase();
   delay(1000);                                  // just so things don't move too fast
-  return;
-}
 
-void determineKey() {
-  // Make LED FLASH
-  while (digitalRead(PROGRAM_KEY) == 1);        // loop until program key is pressed
-  // sendHackToDataBase();
-  return;
-}
-
-void setHackkey() {
-  determineHack();
-  determineKey();
+  // Turn LED to FLASHING
+  while (digitalRead(PROGRAM_KEY) == 1) {
+    // take in all events into an array
+  };
   return;
 }
 
@@ -141,23 +142,23 @@ void loop() {
   
   // need this for reading from keyboard
   Usb.Task();
+
+  PROGRAMMABLE = digitalRead(LAYER_KEY)? true : false;
+
+  if (PROGRAMMABLE) {
+    if (digitalRead(PROGRAM_KEY) != 1) {
+      setHackkey();
+    } else {
+      // manipulate buf
+      checkThenManageBuf();
+      Serial.write(buf, 8);
+      resetBuf();
+    }
   
-  // first check if user wants to enter program mode
-  int progMode = digitalRead(PROGRAM_KEY);
-  if (progMode != 1) {
-    setHackkey();
+  } else {
+    // not programmable
+    manageBuf();
+    Serial.write(buf, 8);
+    resetBuf();
   }
-  // if not, check if user wants to use command
-  else if (1/*userWantsToCommand*/) {
-    // command will make buf different
-  }
-  else {
-    // manipulate buf as usual
-  }
-
-  // これ一番最後
-  // possible bug: if enter first if statement, then buf isn't set to a particular value
-  Serial.write(buf, 8);
-  releaseKey();
-
 }
