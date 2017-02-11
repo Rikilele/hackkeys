@@ -8,7 +8,7 @@
 #include <SPI.h>
 #endif
 
-// Special Keys
+// Special Keys - pins
 #define LAYER_KEY   0
 #define PROGRAM_KEY 1
 #define RESET_KEY   2
@@ -17,10 +17,24 @@
  *     DB FUNCTIONS
  */
 
-boolean addMacro();
+boolean addMacro(uint8_t mod, uint8_t key, uint16_t *modkey_array){};
 uint16_t[] readMacro(uint8_t mod, uint8_t key);
 void deleteMacro(uint8_t mod, uint8_t key);
 void deleteAllMacros();
+
+uint8_t buf[8] = { 0 };
+/*
+ * From: https://learn.adafruit.com/introducing-bluefruit-ez-key-diy-bluetooth-hid-keyboard/sending-keys-via-serial
+ *
+ * buf[0] = modifer flags
+ * buf[1] = 0x00
+ * buf[2] = [keycode1]
+ * buf[3] = [keycode2]
+ * buf[4] = [keycode3]
+ * buf[5] = [keycode4]
+ * buf[6] = [keycode5]
+ * buf[7] = [keycode6]
+ */
 
 /*
  *      CHAR CATCHING BY ARDUINO STARTS HERE
@@ -30,12 +44,13 @@ void deleteAllMacros();
 class KbdRptParser : public KeyboardReportParser {
   protected:
     void OnKeyDown (uint8_t mod, uint8_t key);
+    void OnKeyUp  (uint8_t mod, uint8_t key);
 };
 
 // Variables
 boolean PROGRAMMABLE;     // true is PROGRAMMABLE false is NOT PROGRAMMABLE
 boolean RESET;            // reset flag is set when reset is pressed once
-boolean lCtrlOn;
+/*boolean lCtrlOn;
 boolean lShftOn;
 boolean lAltOn;
 boolean lGUIOn;
@@ -45,38 +60,38 @@ boolean rAltOn;
 boolean rGUIOn;
 uint8_t CHARASCII;
 uint8_t MODIFIERS;
-uint8_t PRESSEDKEY;
+uint8_t PRESSEDKEY;*/
 
-// Catch ASCII from keyboard
-// This is probably an interrupt ---- 注意！
 void KbdRptParser::OnKeyDown(uint8_t mod, uint8_t key)
 {
-  // introduce a mod, so things work out
-  MODIFIERKEYS modif;
-  *((uint8_t*)&modif) = mod;
-  
-  lCtrlOn = (modif.bmLeftCtrl  == 1) ? true : false;
-  lShftOn = (modif.bmLeftShift == 1) ? true : false;
-  lAltOn  = (modif.bmLeftAlt   == 1) ? true : false;
-  lGUIOn  = (modif.bmLeftGUI   == 1) ? true : false;
+  if(!PROGRAMMABLE){
+    buf[0] = mod;
+    if(buf[2] == 0){ buf[2] = key; }
+    else if(buf[3] == 0){ buf[3] = key; }
+    else if(buf[4] == 0){ buf[4] = key; }
+    else if(buf[5] == 0){ buf[5] = key; }
+    else if(buf[6] == 0){ buf[6] = key; }
+    else if(buf[7] == 0){ buf[7] = key; }
+    Serial.write(buf, 8);
+  }
+  // TODO case PROGRAMMABLE
+}
 
-  rCtrlOn = (modif.bmRightCtrl  == 1) ? true : false;
-  rShftOn = (modif.bmRightShift == 1) ? true : false;
-  rAltOn  = (modif.bmRightAlt   == 1) ? true : false;
-  rGUIOn  = (modif.bmRightGUI   == 1) ? true : false;
-  
-  CHARASCII = OemToAscii(mod, key);
-  MODIFIERS = mod;
-  PRESSEDKEY = key;
+void KbdRptParser::OnKeyUp(uint8_t mod, uint8_t key){
+  buf[0] = 0;
+  if(buf[2] == key){ buf[2] = 0; }
+  else if(buf[3] == key){ buf[3] = 0; }
+  else if(buf[4] == key){ buf[4] = 0; }
+  else if(buf[5] == key){ buf[5] = 0; }
+  else if(buf[6] == key){ buf[6] = 0; }
+  else if(buf[7] == key){ buf[7] = 0; }
+  Serial.write(buf, 8);
 }
 
 
 /*
  *      CHAR MANIPULATION FROM ARDUINO STARTS HERE
  */
-
-// What gets sent to USB
-uint8_t buf[8] = { 0 };
 
 //// Defining keyboard mode
 //#define QWERTY   1
@@ -146,11 +161,10 @@ void setup()
   next_time = millis() + 5000;
   HidKeyboard.SetReportParser(0, &Prs);
 
-  // set pins
   pinMode(PROGRAM_KEY, INPUT);
   digitalWrite(PROGRAM_KEY, 1);
 
-  delay( 200 ); //いるかどうかわからん
+  delay( 200 );
 }
 
 void loop() {
@@ -158,7 +172,7 @@ void loop() {
   // need this for reading from keyboard
   Usb.Task();
 
-  PROGRAMMABLE = digitalRead(LAYER_KEY)? true : false;
+  PROGRAMMABLE = digitalRead(LAYER_SWITCH) ? true : false; // TODO check voltage
 
   if (PROGRAMMABLE) {
     if (digitalRead(RESET_KEY) != 1) {
@@ -181,10 +195,13 @@ void loop() {
       resetBuf();
     }
   
-  } else {
+  }
+  // If it's not programmable then it will just send the key presses straight through
+  // So the event listener for the keyboard will deal with that
+  /* else {
     // not programmable
     manageBuf();
     Serial.write(buf, 8);
     resetBuf();
-  }
+    }*/
 }
