@@ -23,6 +23,7 @@ boolean PROGRAMMABLE_LAYER;                   // true is PROGRAMMABLE, false is 
 boolean PROGRAM_MODE_COMM     = false;
 boolean PROGRAM_MODE_MACRO    = false;
 boolean RESET                 = false;        // reset flag is set when reset is pressed once
+boolean PROGRAM_MODE_INIT     = false;
 
 /*
  *     DB FUNCTIONS
@@ -52,7 +53,7 @@ uint8_t buf[8] = { 0 };
  */
 
 boolean addMacro(){
-  Serial.println("Adding macro...");
+  ////////////Serial.println("Adding macro...");
   // Load flags
   uint16_t macro_slots;
   EEPROM.get(0, macro_slots);
@@ -70,18 +71,18 @@ boolean addMacro(){
 	EEPROM.put(addr, prog_macro[j]);
       }
       // Write success
-      Serial.println("Success!");
+      //Serial.println("Success!");
       return true;
     }
     // If taken, loop again
   }
   // Here, everything is taken, so return false
-  Serial.println("Failure!");
+  //Serial.println("Failure!");
   return false;  
 }
 
 boolean execMacro(){
-  Serial.println("Executing macro...");
+  //Serial.println("Executing macro...");
   bool equal = false;
   int addr = 0;
   uint8_t buffer[7];
@@ -111,18 +112,18 @@ boolean execMacro(){
 	Serial.write(buf, 8);
 	if(buf[0] == buf[1] == buf[2] == buf[3] == buf[4] == buf[5] == buf[6] == buf[7] == 0){ k = 12; }
       }
-      Serial.println("Success!");
+      //Serial.println("Success!");
       return true;
     }
     // If not equal, loop again
   }
   // No matching command, return false
-  Serial.println("Failure!");
+  //Serial.println("Failure!");
   return false;
 }
 
 boolean deleteMacro(){
-  Serial.println("Deleting single macro...");
+  //Serial.println("Deleting single macro...");
   bool equal = false;
   int addr = 0;
   uint8_t buffer[7];
@@ -142,17 +143,17 @@ boolean deleteMacro(){
       EEPROM.get(0, macro_slots);
       macro_slots &= ~(0x1 << i);
       EEPROM.put(0, macro_slots);
-      Serial.println("Success!");
+      //Serial.println("Success!");
       return true;
     }
     // If not equal, loop again
   }
   // No matching command, return false
-  Serial.println("Failure!");
+  //Serial.println("Failure!");
   return false;  
 }
 void deleteAllMacros(){
-  Serial.println("Deleting all macros");
+  //Serial.println("Deleting all macros");
   uint16_t macro_slots;
   EEPROM.get(0, macro_slots);
   macro_slots &= 0x0;
@@ -186,7 +187,9 @@ void KbdRptParser::OnKeyDown(uint8_t mod, uint8_t key)
     Serial.write(buf, 8);
   }
   else if (PROGRAM_MODE_COMM) {
-    if (digitalRead(PROGRAM_KEY) != 1) {
+    while(digitalRead(PROGRAM_KEY) == HIGH){}
+    if(digitalRead(PROGRAM_KEY) != HIGH){
+      //Serial.println("aaaaaaa");
       prog_comm[0] = buf[0];
       prog_comm[1] = buf[2];
       prog_comm[2] = buf[3];
@@ -196,9 +199,11 @@ void KbdRptParser::OnKeyDown(uint8_t mod, uint8_t key)
       prog_comm[6] = buf[7];
       PROGRAM_MODE_COMM  = false;
       PROGRAM_MODE_MACRO = true;
+      while(digitalRead(PROGRAM_KEY) == LOW){}
     }
   }
   else if (PROGRAM_MODE_MACRO) {
+    //Serial.println("sadfasdfasdfasdfasdf");
     prog_macro[prog_macro_pos][0] = buf[0];
     prog_macro[prog_macro_pos][1] = buf[2];
     prog_macro[prog_macro_pos][2] = buf[3];
@@ -220,7 +225,7 @@ void KbdRptParser::OnKeyDown(uint8_t mod, uint8_t key)
     if(!execMacro())
       Serial.write(buf, 8);
   }
-  
+  return;
 }
 
 void KbdRptParser::OnKeyUp(uint8_t mod, uint8_t key) {
@@ -292,9 +297,9 @@ void setup()
 #if !defined(__MIPSEL__)
   while (!Serial); // Wait for serial port to connect - used on Leonardo, Teensy and other boards with built-in USB CDC serial connection
 #endif
-  Serial.println("Start");
+  //Serial.println("Start");
   if (Usb.Init() == -1)
-    Serial.println("OSC did not start.");
+    //Serial.println("OSC did not start.");
   delay( 200 );
   next_time = millis() + 5000;
   HidKeyboard.SetReportParser(0, &Prs);
@@ -303,7 +308,7 @@ void setup()
   digitalWrite(PROGRAM_KEY, 1);
   pinMode(LED_PROG, OUTPUT);
 
-  Serial.println("Done starting");
+  //Serial.println("Done starting");
   delay( 200 );
 }
 
@@ -317,7 +322,7 @@ void loop() {
   if (PROGRAMMABLE_LAYER) {
     
     if (digitalRead(RESET_KEY) != HIGH) {     // read reset key first
-      Serial.println("reset key pressed!");
+      //Serial.println("reset key pressed!");
       if (RESET) {
         deleteAllMacros();                 // if second time pressing reset, reset all programs
 	      RESET = false;
@@ -326,32 +331,50 @@ void loop() {
         RESET = true;                      // set up reset flag
       }
     }
-    else if (digitalRead(PROGRAM_KEY) != HIGH) {
+    else if (digitalRead(PROGRAM_KEY) != HIGH && !PROGRAM_MODE_MACRO && !PROGRAM_MODE_COMM) {
       RESET = false;
+      //if(!PROGRAM_MODE_COMM){ PROGRAM_MODE_COMM = true; }
+      //else{ PROGRAM_MODE_COMM = false; PROGRAM_MODE_MACRO = true; }
       PROGRAM_MODE_COMM = true;
+      PROGRAM_MODE_INIT = true;
     }
-    if(digitalRead(RESET_KEY) && PROGRAM_MODE_MACRO){
+    if(digitalRead(RESET_KEY) != HIGH && PROGRAM_MODE_MACRO){
       PROGRAM_MODE_MACRO = false;
       deleteMacro();
+      PROGRAM_MODE_INIT = false;
     }
   
-    if(digitalRead(PROGRAM_KEY) && PROGRAM_MODE_MACRO) {
+    if(digitalRead(PROGRAM_KEY) != HIGH && PROGRAM_MODE_MACRO) {
       PROGRAM_MODE_MACRO = false;
+      //Serial.println("1st add macro");
       addMacro();
+      PROGRAM_MODE_INIT = false;
+      while(digitalRead(PROGRAM_KEY) == HIGH){}
+      delay(100);
     }
   
     if(prog_macro_pos == 11){
       PROGRAM_MODE_MACRO = false;
+      //Serial.println("2nd add macro");
       addMacro();
+      PROGRAM_MODE_INIT = false;
     }
+  }
+  else { // not in programming mode
+    // turn off all programming mode flags
+    PROGRAM_MODE_COMM = false;
+    PROGRAM_MODE_MACRO = false;
   }
   
   /*
   *     LED task
   */
 
-  if (PROGRAM_MODE_COMM) {
+
+  if (!PROGRAMMABLE_LAYER){ ledState = LOW; digitalWrite(LED_PROG, ledState);}
+  else if (PROGRAM_MODE_COMM) {
     ledState = HIGH;
+    digitalWrite(LED_PROG, ledState);
   }
   else if (PROGRAM_MODE_MACRO) {
     // check to see if it's time to blink the LED; that is, if the
@@ -366,25 +389,22 @@ void loop() {
       // if the LED is off turn it on and vice-versa:
       if (ledState == LOW) {
         ledState = HIGH;
+        
       } else {
         ledState = LOW;
       } 
     }
-  } //else {
-    //ledState = LOW;
-  //}
-  // set the LED with the ledState of the variable:
-  digitalWrite(LED_PROG, ledState);
+    digitalWrite(LED_PROG, ledState);
+  } 
 
 
-
-
-  if(PROGRAMMABLE_LAYER)
-    Serial.println("programmable layer");
-  if(PROGRAM_MODE_COMM)
-    Serial.println("program mode comm");
-  if(PROGRAM_MODE_MACRO)
-    Serial.println("program mode macro");
-  if(RESET)
-    Serial.println("reset");
+  //if(PROGRAMMABLE_LAYER)
+    ////Serial.println("programmable layer");
+  //if(PROGRAM_MODE_COMM)
+    //Serial.println("program mode comm");
+  //if(PROGRAM_MODE_MACRO)
+    //Serial.println("program mode macro");
+  //if(RESET)
+    //Serial.println("reset");
+  ////Serial.print("0");
 }
