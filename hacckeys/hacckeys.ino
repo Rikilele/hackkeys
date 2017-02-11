@@ -26,8 +26,7 @@ boolean RESET                 = false;        // reset flag is set when reset is
  */
 
 uint8_t prog_comm[7];
-uint8_t prog_macro[20][7];
-int addr = 0;
+uint8_t prog_macro[12][7];
 
 uint8_t buf[8] = { 0 };
 /*
@@ -49,55 +48,50 @@ uint8_t buf[8] = { 0 };
  */
 
 boolean addMacro(){
-  // First get length of macro
-  uint8_t length = 1; // number of 7-byte blocks
-  boolean cont = true;
-  while(cont){
-    if((prog_macro[length-1][0] | prog_macro[length-1][1] | prog_macro[length-1][2] | prog_macro[length-1][3] | prog_macro[length-1][4] | prog_macro[length-1][5] | prog_macro[length-1][6]) == 0){
-      cont = false;
+  // Load flags
+  uint16_t macro_slots;
+  EEPROM.get(0, macro_slots);
+  // Go through each flag
+  for(int i = 0; i < 10; i++){
+    // If not taken (flag = 0)
+    if( !( (macro_slots >> i) & 0x1 ) ){
+      // Get address of first 7-byte block (for command)
+      int addr = 2 + (i*7*12);
+      // Write command
+      EEPROM.put(addr, prog_comm);
+      // Loop through macro array and write each one
+      for(int j = 0; j < 12; j++){
+	addr += 7;
+	EEPROM.put(addr, prog_macro[j]);
+      }
+      // Write success
+      return true;
     }
-    else { length += 1; }
+    // If taken, loop again
   }
-  // Check if there's enough ROM to store the macro
-  if((EEPROM.length() - addr) < (length*7)){ return false; }
-  // If there is, store the macro in ROM
-  else{
-    EEPROM.put(addr, length);
-    addr += 1;
-    EEPROM.put(addr, prog_comm);
-    addr += 7;
-    EEPROM.put(addr, prog_macro);
-    addr += (1 + (length * 7));
-    // Also remember to increment number of macro counter
-    uint8_t num_macros = EEPROM.read(0);
-    EEPROM.write(0, num_macros+1);
-    return true;
-  }
+  // Here, everything is taken, so return false
+  return false;  
 }
 
 boolean execMacro(){
-  uint8_t num_macros = EEPROM.read(0);
-  uint8_t len_macro;
+  bool equal = false;
+  int addr = 0;
   uint8_t buffer[7];
-  int m_addr = 1;
-  boolean equal = false;
-  // Loop to check each macro in ROM
-  for( int i = 0; i < num_macros; i++ ){
-    len_macro = EEPROM.read(m_addr);
-    m_addr += 1;
-    EEPROM.get(m_addr, buffer);
-    // Check if the command equals this one in ROM
+  // Loop for each macro
+  for(int i = 0; i < 10; i++){
+    addr = 2 + (i*7*12);
+    EEPROM.get(addr, buffer);
+    // Loop to check command equality
     for(int j = 0; j < 7; j++){
       if(buffer[j] == prog_comm[j]){ equal = true; }
       else{ equal = false; j = 7;}
     }
-    // If it is equal, read the next len_macro-1 7-byte blocks and send the keycodes
-    // And exit this function with a success return status
+    // If it is equal, read and execute all the next 7-byte blocks until null terminator
     if(equal){
-      m_addr += 7;
-      for(int k = 0; k < (len_macro - 1); k++){
-	EEPROM.get(m_addr, buffer);
-	m_addr += 7;
+      addr += 7;
+      for(int k = 0; k < 12; k++){
+	EEPROM.get(addr, buffer);
+	addr += 7;
 	buf[0] = buffer[0];
 	buf[1] = 0x00;
 	buf[2] = buffer[1];
@@ -106,47 +100,50 @@ boolean execMacro(){
 	buf[5] = buffer[4];
 	buf[6] = buffer[5];
 	buf[7] = buffer[6];
-	Serial.Write(buf, 8)
+	Serial.Write(buf, 8);
+	if(buf[0] == buf[1] == buf[2] == buf[3] == buf[4] == buf[5] == buf[6] == buf[7] == 0){ k = 12; }
       }
       return true;
     }
-    // If not equal, skip ahead to next entry in ROM
-    m_addr += 7 * (len_macro - 1);
+    // If not equal, loop again
   }
-  // All macros in ROM checked, none match the command, so return false
+  // No matching command, return false
   return false;
 }
 
 boolean deleteMacro(){
-  uint8_t num_macros = EEPROM.read(0);
-  uint8_t len_macro;
+  bool equal = false;
+  int addr = 0;
   uint8_t buffer[7];
-  int m_addr = 1;
-  boolean equal = false;
-  // Loop to check each macro in ROM
-  for( int i = 0; i < num_macros; i++ ){
-    len_macro = EEPROM.read(m_addr);
-    m_addr += 1;
-    EEPROM.get(m_addr, buffer);
-    // Check if the command equals this one in ROM
+  // Loop for each macro
+  for(int i = 0; i < 10; i++){
+    addr = 2 + (i*7*12);
+    EEPROM.get(addr, buffer);
+    // Loop to check command equality
     for(int j = 0; j < 7; j++){
       if(buffer[j] == prog_comm[j]){ equal = true; }
       else{ equal = false; j = 7;}
     }
-    // If it is equal, read the next len_macro-1 7-byte blocks and send the keycodes
-    // And exit this function with a success return status
+    // If it is equal, set the corresponding flag to zero (open)
     if(equal){
-    }
+      // Load flags
+      uint16_t macro_slots;
+      EEPROM.get(0, macro_slots);
+      macro_slots &= ~(0x1 << i);
+      EEPROM.put(0, macro_slots);
       return true;
     }
-    // If not equal, skip ahead to next entry in ROM
-    m_addr += 7 * (len_macro - 1);
+    // If not equal, loop again
   }
-  // All macros in ROM checked, none match the command, so return false
-  return false;  
+  // No matching command, return false
+  return false;
 }
-void deleteAllMacros();
-void loadMacros();
+void deleteAllMacros(){
+  uint16_t macro_slots;
+  EEPROM.get(0, macro_slots);
+  macro_slots &= 0x0;
+  EEPROM.put(0, macro_slots);
+}
 
 
 /*
@@ -256,13 +253,13 @@ void setup()
   digitalWrite(PROGRAM_KEY, 1);
   pinMode(LED_PROG, OUTPUT);
 
-  uint64_t num;
+  /*uint64_t num;
   boolean cont = true;
   while(cont && addr < EEPROM.length()){
     EEPROM.get(addr, num);
     if(num == 0xffffffffffffffff){ cont = false; }
     else{ addr += 1; }
-  }
+    }*/
 
   delay( 200 );
 }
